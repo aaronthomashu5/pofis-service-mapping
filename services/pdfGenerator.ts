@@ -2,6 +2,20 @@
 import QRCode from 'qrcode';
 import type { Machine } from '../types';
 
+const getLogoBase64 = (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        fetch('/pofis-logo.jpeg')
+            .then(res => res.blob())
+            .then(blob => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            })
+            .catch(reject);
+    });
+};
+
 export const pdfGenerator = {
     generateReceiptDoc: async (machines: Machine[]) => {
         if (machines.length === 0) throw new Error("No machines provided");
@@ -21,12 +35,11 @@ export const pdfGenerator = {
         const pageWidth = doc.internal.pageSize.getWidth();
         
         // --- HEADER ---
-        // Logo Placeholder (Left)
-        doc.setFillColor(0, 0, 0); // Black
-        doc.rect(10, 10, 40, 20, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(10);
-        doc.text("POFIS", 20, 22);
+        // Logo (Left)
+        try {
+            const logoData = await getLogoBase64();
+            doc.addImage(logoData, 'JPEG', 10, 8, 18, 25);
+        } catch (e) { console.error('Logo load error', e); }
         
         // Company Name (Right)
         doc.setTextColor(0, 0, 0);
@@ -209,12 +222,12 @@ export const pdfGenerator = {
         const marginLeft = 10;
         
         // --- HEADER ---
-        doc.setFillColor(0, 0, 0);
-        doc.rect(marginLeft, 10, 40, 20, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(10);
-        doc.text("POFIS", 20, 22);
-        
+        // Logo (Left)
+        try {
+            const logoData = await getLogoBase64();
+            doc.addImage(logoData, 'JPEG', marginLeft, 8, 18, 25);
+        } catch (e) { console.error('Logo load error', e); }
+
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
