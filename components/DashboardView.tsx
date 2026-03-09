@@ -2,9 +2,33 @@
 import React, { useEffect, useState } from 'react';
 import { machineService } from '../services/machineService';
 import type { Machine, ServiceThresholds, EmailSettings } from '../types';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, LineChart, Line, CartesianGrid } from 'recharts';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Bar, Pie, Line } from 'react-chartjs-2';
 import * as XLSX from 'xlsx';
 import type { QueueFilter } from '../App';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 interface DashboardProps {
     isDarkMode: boolean;
@@ -263,18 +287,8 @@ const DashboardView: React.FC<DashboardProps> = ({ isDarkMode, toggleDarkMode, o
         else timeBuckets[3].count++;
     });
 
-    const CustomTooltip = ({ active, payload, label }: any) => {
-        if (active && payload && payload.length) {
-          return (
-            <div className={`p-3 border rounded shadow-md ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
-              <p className="font-semibold">{`${label}`}</p>
-              <p className="text-sm">{`Count: ${payload[0].value} machine(s)`}</p>
-              <p className="text-xs text-blue-500 mt-1 cursor-pointer">Click to view machines</p>
-            </div>
-          );
-        }
-        return null;
-    };
+    const chartTextColor = isDarkMode ? '#9ca3af' : '#6b7280';
+    const chartGridColor = isDarkMode ? '#374151' : '#e5e7eb';
 
     // --- ANALYTICS: KEY PERFORMANCE INDICATORS ---
     
@@ -460,32 +474,30 @@ const DashboardView: React.FC<DashboardProps> = ({ isDarkMode, toggleDarkMode, o
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col items-center">
                     <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6 self-start w-full border-b border-gray-200 dark:border-gray-700 pb-2">Queue Status Distribution</h3>
                     <div className="w-full h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                             <PieChart>
-                                <Pie
-                                    data={statusData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={70}
-                                    outerRadius={90}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                    onClick={(data) => {
-                                        if (data && data.payload && data.payload.filterId) {
-                                            onNavigateToQueue(data.payload.filterId as QueueFilter);
+                        <Pie 
+                            data={{
+                                labels: statusData.map(d => d.name),
+                                datasets: [{
+                                    data: statusData.map(d => d.value),
+                                    backgroundColor: COLORS,
+                                    borderWidth: 0,
+                                }]
+                            }}
+                            options={{
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { labels: { color: chartTextColor } }
+                                },
+                                onClick: (event, elements) => {
+                                    if (elements.length > 0) {
+                                        const index = elements[0].index;
+                                        if (statusData[index]?.filterId) {
+                                            onNavigateToQueue(statusData[index].filterId as QueueFilter);
                                         }
-                                    }}
-                                    className="cursor-pointer"
-                                    stroke="none"
-                                >
-                                    {statusData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className="hover:opacity-80 transition-opacity" />
-                                    ))}
-                                </Pie>
-                                <Tooltip content={<CustomTooltip />} />
-                                <Legend wrapperStyle={{ color: isDarkMode ? '#9ca3af' : '#374151' }} />
-                            </PieChart>
-                        </ResponsiveContainer>
+                                    }
+                                }
+                            }}
+                        />
                     </div>
                 </div>
 
@@ -493,24 +505,33 @@ const DashboardView: React.FC<DashboardProps> = ({ isDarkMode, toggleDarkMode, o
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
                     <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6 border-b border-gray-200 dark:border-gray-700 pb-2">Time Spent in Current Stage</h3>
                     <div className="w-full h-64">
-                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={timeBuckets} onClick={(data) => {
-                                if (data && data.activePayload && data.activePayload.length > 0 && data.activePayload[0].payload.filterId) {
-                                    onNavigateToQueue(data.activePayload[0].payload.filterId as QueueFilter);
+                        <Bar 
+                            data={{
+                                labels: timeBuckets.map(d => d.name),
+                                datasets: [{
+                                    label: 'Count',
+                                    data: timeBuckets.map(d => d.count),
+                                    backgroundColor: isDarkMode ? '#60a5fa' : '#3b82f6',
+                                    borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 } as any,
+                                }]
+                            }}
+                            options={{
+                                maintainAspectRatio: false,
+                                scales: {
+                                    x: { grid: { display: false }, ticks: { color: chartTextColor } },
+                                    y: { grid: { color: chartGridColor }, ticks: { color: chartTextColor, stepSize: 1 } }
+                                },
+                                plugins: { legend: { display: false } },
+                                onClick: (event, elements) => {
+                                    if (elements.length > 0) {
+                                        const index = elements[0].index;
+                                        if (timeBuckets[index]?.filterId) {
+                                            onNavigateToQueue(timeBuckets[index].filterId as QueueFilter);
+                                        }
+                                    }
                                 }
-                            }}>
-                                <XAxis dataKey="name" stroke={isDarkMode ? '#9ca3af' : '#6b7280'} fontSize={12} />
-                                <YAxis stroke={isDarkMode ? '#9ca3af' : '#6b7280'} fontSize={12} allowDecimals={false} />
-                                <Tooltip content={<CustomTooltip />} cursor={{fill: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'}} />
-                                <Bar 
-                                    dataKey="count" 
-                                    fill={isDarkMode ? '#60a5fa' : '#3b82f6'} 
-                                    radius={[4, 4, 0, 0]} 
-                                    barSize={40} 
-                                    className="cursor-pointer"
-                                />
-                            </BarChart>
-                        </ResponsiveContainer>
+                            }}
+                        />
                     </div>
                 </div>
             </div>
@@ -542,14 +563,26 @@ const DashboardView: React.FC<DashboardProps> = ({ isDarkMode, toggleDarkMode, o
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
                         <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6 border-b border-gray-200 dark:border-gray-700 pb-2">Stage Bottlenecks (Avg Hours)</h3>
                         <div className="w-full h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={bottleneckData} layout="vertical" margin={{ left: 20 }}>
-                                    <XAxis type="number" stroke={isDarkMode ? '#9ca3af' : '#6b7280'} fontSize={12} />
-                                    <YAxis dataKey="name" type="category" stroke={isDarkMode ? '#9ca3af' : '#6b7280'} fontSize={12} width={80} />
-                                    <Tooltip cursor={{fill: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'}} contentStyle={{ backgroundColor: isDarkMode ? '#1f2937' : '#fff', borderColor: isDarkMode ? '#374151' : '#e5e7eb', color: isDarkMode ? '#fff' : '#111827' }} />
-                                    <Bar dataKey="time" fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={20} name="Avg. Hours" />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            <Bar 
+                                data={{
+                                    labels: bottleneckData.map(d => d.name),
+                                    datasets: [{
+                                        label: 'Avg. Hours',
+                                        data: bottleneckData.map(d => d.time),
+                                        backgroundColor: '#f59e0b',
+                                        borderRadius: { topRight: 4, bottomRight: 4, topLeft: 0, bottomLeft: 0 } as any,
+                                    }]
+                                }}
+                                options={{
+                                    indexAxis: 'y',
+                                    maintainAspectRatio: false,
+                                    scales: {
+                                        x: { grid: { color: chartGridColor }, ticks: { color: chartTextColor } },
+                                        y: { grid: { display: false }, ticks: { color: chartTextColor } }
+                                    },
+                                    plugins: { legend: { display: false } }
+                                }}
+                            />
                         </div>
                     </div>
 
@@ -557,17 +590,39 @@ const DashboardView: React.FC<DashboardProps> = ({ isDarkMode, toggleDarkMode, o
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
                         <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6 border-b border-gray-200 dark:border-gray-700 pb-2">7-Day Activity Volume</h3>
                         <div className="w-full h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={volumeData}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#e5e7eb'} vertical={false} />
-                                    <XAxis dataKey="date" stroke={isDarkMode ? '#9ca3af' : '#6b7280'} fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                                    <YAxis stroke={isDarkMode ? '#9ca3af' : '#6b7280'} fontSize={12} allowDecimals={false} tickLine={false} axisLine={false} />
-                                    <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#1f2937' : '#fff', borderColor: isDarkMode ? '#374151' : '#e5e7eb', color: isDarkMode ? '#fff' : '#111827' }} />
-                                    <Legend wrapperStyle={{ paddingTop: '10px' }} />
-                                    <Line type="monotone" dataKey="Registered" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="New Jobs" />
-                                    <Line type="monotone" dataKey="Completed" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Completed" />
-                                </LineChart>
-                            </ResponsiveContainer>
+                            <Line 
+                                data={{
+                                    labels: volumeData.map(d => d.date),
+                                    datasets: [
+                                        {
+                                            label: 'New Jobs',
+                                            data: volumeData.map(d => d.Registered),
+                                            borderColor: '#8b5cf6',
+                                            backgroundColor: '#8b5cf6',
+                                            tension: 0.3,
+                                            borderWidth: 3,
+                                            pointRadius: 4,
+                                        },
+                                        {
+                                            label: 'Completed',
+                                            data: volumeData.map(d => d.Completed),
+                                            borderColor: '#10b981',
+                                            backgroundColor: '#10b981',
+                                            tension: 0.3,
+                                            borderWidth: 3,
+                                            pointRadius: 4,
+                                        }
+                                    ]
+                                }}
+                                options={{
+                                    maintainAspectRatio: false,
+                                    scales: {
+                                        x: { grid: { display: false }, ticks: { color: chartTextColor } },
+                                        y: { grid: { color: chartGridColor, borderDash: [3, 3] }, ticks: { color: chartTextColor, stepSize: 1 } }
+                                    },
+                                    plugins: { legend: { labels: { color: chartTextColor } } }
+                                }}
+                            />
                         </div>
                     </div>
 
@@ -575,14 +630,25 @@ const DashboardView: React.FC<DashboardProps> = ({ isDarkMode, toggleDarkMode, o
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
                         <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6 border-b border-gray-200 dark:border-gray-700 pb-2">Monthly Completions Trend</h3>
                          <div className="w-full h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={monthlyData}>
-                                    <XAxis dataKey="name" stroke={isDarkMode ? '#9ca3af' : '#6b7280'} fontSize={12} />
-                                    <YAxis stroke={isDarkMode ? '#9ca3af' : '#6b7280'} fontSize={12} allowDecimals={false} />
-                                    <Tooltip cursor={{fill: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'}} contentStyle={{ backgroundColor: isDarkMode ? '#1f2937' : '#fff', borderColor: isDarkMode ? '#374151' : '#e5e7eb', color: isDarkMode ? '#fff' : '#111827' }} />
-                                    <Bar dataKey="Completed" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30} name="Completed Units" />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            <Bar 
+                                data={{
+                                    labels: monthlyData.map(d => d.name),
+                                    datasets: [{
+                                        label: 'Completed Units',
+                                        data: monthlyData.map(d => d.Completed),
+                                        backgroundColor: '#10b981',
+                                        borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 } as any,
+                                    }]
+                                }}
+                                options={{
+                                    maintainAspectRatio: false,
+                                    scales: {
+                                        x: { grid: { display: false }, ticks: { color: chartTextColor } },
+                                        y: { grid: { color: chartGridColor }, ticks: { color: chartTextColor, stepSize: 1 } }
+                                    },
+                                    plugins: { legend: { display: false } }
+                                }}
+                            />
                         </div>
                     </div>
                 </div>

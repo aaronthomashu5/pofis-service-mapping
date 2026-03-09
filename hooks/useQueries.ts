@@ -44,7 +44,7 @@ export const useAllMachines = (withHistory = false, limit?: number) => {
   return useQuery({
     queryKey: [...queryKeys.machines, { withHistory, limit }],
     queryFn: () => machineService.getAllMachines(withHistory, limit),
-    staleTime: 2 * 60 * 1000, // 2 minutes for machine data
+    staleTime: 0, // No caching, always fetch fresh data
   });
 };
 
@@ -52,7 +52,7 @@ export const useActiveMachines = (withHistory = false, page?: number, pageSize?:
   return useQuery({
     queryKey: [...queryKeys.activeMachines, { withHistory, page, pageSize }],
     queryFn: () => machineService.getActiveMachines(withHistory, page, pageSize),
-    staleTime: 3 * 60 * 1000, // 3 minutes for active machines (increased from 1 minute)
+    staleTime: 0, // No caching, always fetch fresh data
   });
 };
 
