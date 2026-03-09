@@ -1,0 +1,7 @@
+{
+  "name": "POFIS Service Mapping",
+  "description": "An application to register machine details, generate a QR code for identification, and look up machine information and history by scanning the code or entering its identification number.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
